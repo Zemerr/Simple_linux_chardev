@@ -1,0 +1,172 @@
+# Custom device driver
+
+Custom device driver is simple kernel module for character device implementation.
+This module creates two devices with the list of file operation and debugfs entry.
+Each device has their own database to read/write information and debugfs dir to collect
+and get all information stored in database.
+
+Device support operations:
+* Open
+* Write
+* Read
+* Release
+* Ioctl
+* Fasync
+
+Project consist kernel driver, test application, and helper scripts
+
+```bash
+├── app
+│   ├── device_app.c
+│   └── Makefile
+├── driver
+│   ├── cdev_ioctl.h
+│   ├── custom_device.c
+│   ├── custom_device.h
+│   └── Makefile
+├── main.sh
+├── README
+└── test.sh
+```
+
+## Requirements:
+
+* Linux OS x86
+* gcc
+```bash
+apt install gcc
+```
+* make
+```bash
+apt install make
+```
+
+## Build and Usage
+
+For build and usage purpouse there is the script **main.sh** and **test.sh**.
+
+**NOTE** : 
+Some of the operations in the scripts (such as loading and unloading the module, reading the debugfs directory ...) require root permition. So **sudo** password will be asked for this operation.
+
+There are three main command:
+
+1. **Build and start driver**
+```bash
+./main.sh start
+```
+This command:
+* build (re-build if files exist) module
+* load (remove previously if already loaded) module
+* create devices (delete old devices if exists)
+* change device owner to current
+* build test application and put in current folder.
+
+Once command are finished you can use two devices to write and read string in database:
+**/dev/custom_device0**
+**/dev/custom_device1**
+
+Use Debugfs folder to read all information in database for each device:
+**/sys/kernel/debug/custom_device/0**
+**/sys/kernel/debug/custom_device/1**
+
+Application for test purpouse:
+**./device_app -h**
+
+2. **Stop and remove driver**
+```bash
+./main.sh stop
+```
+* Remove created devices
+* Stop driver
+* Clean driver build folder
+* Clean app build folder
+* Remove binary
+
+
+3. **Automatic driver test**
+Once driver are build and installed test cmd are available.
+```bash
+./main.sh start
+./test.sh
+```
+
+**Test Steps:**
+* Start application **./device_app** to set reference string and register fasync method
+* Write strings in device file
+* Catch signal
+* Print debugfs file
+
+**Note**: You can replace this two command with one.
+```bash
+./main.sh start
+./test.sh
+```
+or 
+```bash
+./main.sh test
+```
+
+4. **Manual Testing**
+**./device_app** gives possibility to test ioctl and fasync methods manualy.
+Example 1:
+
+```bash
+./main.sh start
+echo "123" > /dev/custom_device0
+echo "1234" > /dev/custom_device0
+echo "12345" > /dev/custom_device0
+echo "123456" > /dev/custom_device0
+
+
+sudo cat /sys/kernel/debug/custom_device/0
+123456
+12345
+1234
+123
+
+
+./device_app -d
+device_app:> Set Reference str = 123456
+device_app:> Set file_name = /dev/custom_device0
+device_app:> Delete database
+-------- Exit from device_app -------
+
+sudo cat /sys/kernel/debug/custom_device/0
+
+```
+
+Example 2:
+
+Open first console to start driver and run app:
+```bash
+./main.sh start
+./device_app -i -s 1234
+device_app:> Set Reference str = 1234
+device_app:> Set file_name = /dev/custom_device0
+device_app:> --- RUN INTERACTIVE MODE ---
+device_app:> Procces wait for signal ...
+device_app:> Print 'q and press "ENTER" to exit
+```
+Open second console to write strings:
+
+```bash
+echo "123" > /dev/custom_device0
+echo "1235667" > /dev/custom_device0
+echo "1237778" > /dev/custom_device0
+echo "1234" > /dev/custom_device0
+```
+
+First console:
+```bash
+!!!!!!!!!!!!!  NEW STRING MATCH REFERENCE !!!!!!!!!!!!!
+```
+
+For more information use:
+First console:
+```bash
+./device_app -h
+```
+
+
+
+
